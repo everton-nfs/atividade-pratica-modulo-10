@@ -14,20 +14,31 @@ import Button from '@mui/material/Button';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import Modal from '@mui/material/Modal';
+import Checkbox from '@mui/material/Checkbox';
 
 import CriarTarefa from './CriarTarefa';
 import EditarTarefa from './EditarTarefa';
 
 //A função abaixo é usada para criar o array contendo os dados iniciais da listagem de tarefas.
 function createData(
-  idTarefa: number,
-  tituloTarefa: string,
-  descricaoTarefa: string,
-  inicioTarefa: string,
-  fimTarefa: string,
-  statusTarefa: string,
-  recursoTarefa: string,
+  idTarefa,
+  tituloTarefa,
+  descricaoTarefa,
+  inicioTarefa,
+  fimTarefa,
+  statusTarefa,
+  recursoTarefa
 ) {
+  if (typeof idTarefa !== 'number' ||
+      typeof tituloTarefa !== 'string' ||
+      typeof descricaoTarefa !== 'string' ||
+      typeof inicioTarefa !== 'string' ||
+      typeof fimTarefa !== 'string' ||
+      typeof statusTarefa !== 'string' ||
+      typeof recursoTarefa !== 'string') {
+    throw new Error("Invalid input type");
+  }
+
   return { idTarefa, tituloTarefa, descricaoTarefa, inicioTarefa, fimTarefa, statusTarefa, recursoTarefa };
 }
 
@@ -52,6 +63,7 @@ const ListarTarefa = () => {
   const handleClose = () => setOpen(false);
   const handleOpenEditar = () => setOpenEditar(true);
   const handleCloseEditar = () => setOpenEditar(false);
+  const [selectedItems, setSelectedItems] = useState([]);
 
   //O array definido acima é setado como conteúdo do state Tarefas na renderização inicial do componente.
   useEffect(() => {
@@ -81,6 +93,46 @@ const ListarTarefa = () => {
     );
   };
 
+  const handleSelectAllClick = (event) => {
+    if (event.target.checked) {
+      const newSelecteds = tarefas.map((n) => n.idTarefa);
+      setSelectedItems(newSelecteds);
+      return;
+    }
+    setSelectedItems([]);
+  };
+  
+  const handleSelectClick = (id) => {
+    const selectedIndex = selectedItems.indexOf(id);
+    let newSelected = [];
+  
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selectedItems, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selectedItems.slice(1));
+    } else if (selectedIndex === selectedItems.length - 1) {
+      newSelected = newSelected.concat(selectedItems.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selectedItems.slice(0, selectedIndex),
+        selectedItems.slice(selectedIndex + 1),
+      );
+    }
+
+    setSelectedItems(newSelected);
+  };
+
+  const handleDeleteSelected = () => {
+    setTarefas(tarefas.filter(tarefa => selectedItems.indexOf(tarefa.idTarefa) === -1));
+    setSelectedItems([]);
+  };
+
+  const handleCancel = () => {
+    setSelectedItems([]);
+  };
+
+  const isSelected = (id) => selectedItems.indexOf(id) !== -1;
+
     return(
     <>
     <Card>
@@ -92,24 +144,42 @@ const ListarTarefa = () => {
             <TableContainer component={Paper}>
             <Table sx={{ minWidth: 650 }} size="small" aria-label="a dense table">
                 <TableHead>
-                <TableRow>
-                    <TableCell>#</TableCell>
-                    <TableCell>Título</TableCell>
-                    <TableCell align="right">Descrição</TableCell>
-                    <TableCell align="right">Data de Início</TableCell>
-                    <TableCell align="right">Data de Finalização</TableCell>
-                    <TableCell align="right">Status</TableCell>
-                    <TableCell align="right">Recurso</TableCell>
-                    <TableCell align="left"></TableCell>
-                    <TableCell align="left"></TableCell>
-                </TableRow>
+                  <TableRow>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          indeterminate={selectedItems.length > 0 && selectedItems.length < tarefas.length}
+                          checked={tarefas.length > 0 && selectedItems.length === tarefas.length}
+                          onChange={handleSelectAllClick}
+                        />
+                      </TableCell>
+                      <TableCell>#</TableCell>
+                      <TableCell>Título</TableCell>
+                      <TableCell align="right">Descrição</TableCell>
+                      <TableCell align="right">Data de Início</TableCell>
+                      <TableCell align="right">Data de Finalização</TableCell>
+                      <TableCell align="right">Status</TableCell>
+                      <TableCell align="right">Recurso</TableCell>
+                      <TableCell align="left"></TableCell>
+                      <TableCell align="left"></TableCell>
+                  </TableRow>
                 </TableHead>
                 <TableBody>
                 {tarefas.map((row, indice) => (
                     <TableRow
-                    key={indice}
-                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                      key={row.idTarefa}
+                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                      hover
+                      onClick={() => handleSelectClick(row.idTarefa)}
+                      selected={isSelected(row.idTarefa)}
+                      style={{ cursor: 'pointer' }}
+                      className={isSelected(row.idTarefa) ? 'selected-row' : ''}
                     >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedItems.indexOf(row.idTarefa) !== -1}
+                          onChange={() => handleSelectClick(row.idTarefa)}
+                        />
+                      </TableCell>
                       <TableCell component="th" scope="row">
                           {row.idTarefa}
                       </TableCell>
@@ -134,9 +204,26 @@ const ListarTarefa = () => {
             </TableContainer>
         </CardContent>
         <CardActions>
-            <Button size="small" variant="contained" onClick={handleOpen}>Criar Tarefa</Button>
-            <Button size="small" variant="outlined">Cancelar</Button>
-      </CardActions> 
+            {selectedItems.length > 0 ? (
+              <Button size="small" variant="contained" color="error" onClick={handleDeleteSelected}>
+                Excluir Seleção
+              </Button>
+            ) : (
+              <Button size="small" variant="contained" onClick={handleOpen}>Criar Tarefa</Button>
+            )}
+
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={handleCancel}
+              style={{
+                color: selectedItems.length > 0 ? 'red' : '#1976d2',
+                borderColor: selectedItems.length > 0 ? 'red' : '#1976d2',
+              }}
+            >
+              Cancelar
+            </Button>
+        </CardActions> 
     </Card>
     <div>
       <Modal
